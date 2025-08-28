@@ -1,44 +1,57 @@
 import React, { useState } from 'react';
-import { 
-  Mail, 
-  Lock, 
-  Eye, 
-  EyeOff, 
-  LogIn, 
-  GraduationCap, 
-  AlertCircle 
-} from 'lucide-react';
-
-
+import { useNavigate } from 'react-router-dom';
+import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
+import Input from '../../../components/ui/Input';
 
-
-const LoginForm = ({ onLogin, isLoading, error }) => {
+const LoginForm = ({ onLogin, isLoading }) => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    rememberMe: false
+    username: '',
+    password: ''
   });
   const [showPassword, setShowPassword] = useState(false);
-  const [validationErrors, setValidationErrors] = useState({});
+  const [errors, setErrors] = useState({});
 
   const validateForm = () => {
-    const errors = {};
-    
-    if (!formData?.email?.trim()) {
-      errors.email = 'Email is required';
-    } else if (!formData?.email?.includes('@')) {
-      errors.email = 'Please enter a valid email address';
+    const newErrors = {};
+
+    if (!formData?.username?.trim()) {
+      newErrors.username = 'Username is required';
+    } else {
+      // Validate PRN format (23025331844001-23025331844075) or Teacher ID (T0001-T0005)
+      const prnPattern = /^23025331844(0[0-6][0-9]|07[0-5])$/;
+      const teacherPattern = /^T000[1-5]$/;
+      
+      if (!prnPattern?.test(formData?.username) && !teacherPattern?.test(formData?.username)) {
+        newErrors.username = 'Invalid format. Use PRN (23025331844001-075) or Teacher ID (T0001-T0005)';
+      }
     }
-    
+
     if (!formData?.password?.trim()) {
-      errors.password = 'Password is required';
+      newErrors.password = 'Password is required';
     } else if (formData?.password?.length < 6) {
-      errors.password = 'Password must be at least 6 characters';
+      newErrors.password = 'Password must be at least 6 characters';
     }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors)?.length === 0;
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e?.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
     
-    setValidationErrors(errors);
-    return Object.keys(errors)?.length === 0;
+    // Clear error when user starts typing
+    if (errors?.[name]) {
+      setErrors(prev => ({
+        ...prev,
+        [name]: ''
+      }));
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -48,180 +61,94 @@ const LoginForm = ({ onLogin, isLoading, error }) => {
       return;
     }
 
-    await onLogin?.(formData);
+    try {
+      await onLogin(formData);
+    } catch (error) {
+      setErrors({
+        submit: error?.message || 'Login failed. Please try again.'
+      });
+    }
   };
 
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e?.target || {};
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
-    
-    // Clear validation error for this field
-    if (validationErrors?.[name]) {
-      setValidationErrors(prev => ({
-        ...prev,
-        [name]: ''
-      }));
-    }
+  const handleForgotPassword = () => {
+    console.log('Forgot password clicked');
+    // In a real app, this would navigate to password reset
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Header */}
-      <div className="text-center mb-8">
-        <div className="mx-auto w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mb-4">
-          <GraduationCap className="w-8 h-8 text-white" />
-        </div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-          Welcome Back
-        </h1>
-        <p className="text-gray-600 dark:text-gray-400">
-          Sign in to CSMSS ECE Portal
-        </p>
-      </div>
-      {/* Error Message */}
-      {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
-          <div className="flex items-center">
-            <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 mr-2" />
-            <span className="text-sm text-red-700 dark:text-red-300">{error}</span>
-          </div>
-        </div>
-      )}
-      {/* Email Field */}
-      <div className="space-y-2">
-        <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-          Email Address
-        </label>
-        <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Mail className="h-5 w-5 text-gray-400" />
-          </div>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            required
-            value={formData?.email || ''}
-            onChange={handleChange}
-            className={`block w-full pl-10 pr-3 py-2.5 border rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white ${
-              validationErrors?.email 
-                ? 'border-red-300 dark:border-red-600' :'border-gray-300 dark:border-gray-600'
-            }`}
-            placeholder="Enter your email address"
-            disabled={isLoading}
-          />
-        </div>
-        {validationErrors?.email && (
-          <p className="text-sm text-red-600 dark:text-red-400">{validationErrors?.email}</p>
-        )}
+      {/* Username Field */}
+      <div>
+        <Input
+          label="Username"
+          type="text"
+          name="username"
+          placeholder="Enter PRN or Teacher ID"
+          value={formData?.username}
+          onChange={handleInputChange}
+          error={errors?.username}
+          required
+          className="w-full"
+        />
       </div>
       {/* Password Field */}
-      <div className="space-y-2">
-        <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-          Password
-        </label>
-        <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Lock className="h-5 w-5 text-gray-400" />
-          </div>
-          <input
-            id="password"
-            name="password"
-            type={showPassword ? 'text' : 'password'}
-            autoComplete="current-password"
-            required
-            value={formData?.password || ''}
-            onChange={handleChange}
-            className={`block w-full pl-10 pr-10 py-2.5 border rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white ${
-              validationErrors?.password
-                ? 'border-red-300 dark:border-red-600' :'border-gray-300 dark:border-gray-600'
-            }`}
-            placeholder="Enter your password"
-            disabled={isLoading}
-          />
-          <button
-            type="button"
-            className="absolute inset-y-0 right-0 pr-3 flex items-center"
-            onClick={() => setShowPassword(!showPassword)}
-            disabled={isLoading}
-          >
-            {showPassword ? (
-              <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600" />
-            ) : (
-              <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600" />
-            )}
-          </button>
-        </div>
-        {validationErrors?.password && (
-          <p className="text-sm text-red-600 dark:text-red-400">{validationErrors?.password}</p>
-        )}
-      </div>
-      {/* Remember Me & Forgot Password */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center">
-          <input
-            id="rememberMe"
-            name="rememberMe"
-            type="checkbox"
-            checked={formData?.rememberMe || false}
-            onChange={handleChange}
-            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-            disabled={isLoading}
-          />
-          <label htmlFor="rememberMe" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
-            Remember me
-          </label>
-        </div>
-
-        <div className="text-sm">
-          <button
-            type="button"
-            className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400"
-            disabled={isLoading}
-          >
-            Forgot password?
-          </button>
-        </div>
-      </div>
-      {/* Submit Button */}
-      <button
-        type="submit"
-        disabled={isLoading}
-        className="group relative w-full flex justify-center py-2.5 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-      >
-        {isLoading ? (
-          <>
-            <div className="animate-spin -ml-1 mr-3 h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
-            Signing in...
-          </>
-        ) : (
-          <>
-            <span className="absolute left-0 inset-y-0 flex items-center pl-3">
-              <LogIn className="h-5 w-5 text-blue-500 group-hover:text-blue-400" />
-            </span>
-            Sign in
-          </>
-        )}
-      </button>
-      {/* Divider */}
       <div className="relative">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-gray-300 dark:border-gray-600" />
+        <Input
+          label="Password"
+          type={showPassword ? 'text' : 'password'}
+          name="password"
+          placeholder="Enter your password"
+          value={formData?.password}
+          onChange={handleInputChange}
+          error={errors?.password}
+          required
+          className="w-full pr-12"
+        />
+        <button
+          type="button"
+          onClick={() => setShowPassword(!showPassword)}
+          className="absolute right-3 top-9 text-muted-foreground hover:text-foreground transition-smooth"
+        >
+          <Icon name={showPassword ? 'EyeOff' : 'Eye'} size={20} />
+        </button>
+      </div>
+      {/* Submit Error */}
+      {errors?.submit && (
+        <div className="flex items-center space-x-2 text-error text-sm bg-error/10 p-3 rounded-lg">
+          <Icon name="AlertCircle" size={16} />
+          <span>{errors?.submit}</span>
         </div>
-        <div className="relative flex justify-center text-sm">
-          <span className="px-2 bg-white dark:bg-gray-900 text-gray-500">
-            First time login?
-          </span>
-        </div>
+      )}
+      {/* Login Button */}
+      <Button
+        type="submit"
+        variant="default"
+        loading={isLoading}
+        fullWidth
+        className="h-12 text-base font-semibold"
+      >
+        {isLoading ? 'Signing In...' : 'Sign In'}
+      </Button>
+      {/* Forgot Password Link */}
+      <div className="text-center">
+        <button
+          type="button"
+          onClick={handleForgotPassword}
+          className="text-sm text-primary hover:text-primary/80 transition-smooth font-medium"
+        >
+          Forgot your password?
+        </button>
       </div>
       {/* Help Text */}
-      <div className="text-center">
-        <p className="text-xs text-gray-600 dark:text-gray-400">
-          Contact IT support for account assistance
+      <div className="text-center space-y-2 pt-4 border-t border-border">
+        <p className="text-xs text-muted-foreground">
+          <strong>Students:</strong> Use PRN (23025331844001-075)
+        </p>
+        <p className="text-xs text-muted-foreground">
+          <strong>Faculty:</strong> Use Teacher ID (T0001-T0005)
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Default password: <span className="font-mono bg-muted px-1 rounded">Pass@123</span>
         </p>
       </div>
     </form>

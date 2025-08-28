@@ -1,253 +1,169 @@
 import React, { useState } from 'react';
-import { useTeacherStudents, useSupabaseData } from '../../../hooks/useSupabaseData';
-import { Users, TrendingUp, Calendar, BookOpen, Search } from 'lucide-react';
+import Icon from '../../../components/AppIcon';
+import Button from '../../../components/ui/Button';
 
-const StudentPerformanceMatrix = () => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedSubject, setSelectedSubject] = useState('all');
-  const { students, loading: studentsLoading } = useTeacherStudents();
-  
-  // Fetch subjects taught by this teacher
-  const { data: subjects } = useSupabaseData('subject_assignments', {
-    select: 'subject:subjects(id, subject_name, subject_code)',
-    filters: [{ column: 'teacher_id', value: null }], // Will be set by the hook
-    dependencies: []
-  });
-
-  // Filter students based on search term
-  const filteredStudents = students?.filter(student =>
-    student?.full_name?.toLowerCase()?.includes(searchTerm?.toLowerCase()) ||
-    student?.prn?.toLowerCase()?.includes(searchTerm?.toLowerCase())
-  );
-
-  const calculateStudentStats = (studentId) => {
-    // In a real implementation, these would be calculated from actual data
-    // For now, we'll use placeholder values
-    return {
-      attendancePercentage: Math.floor(Math.random() * 30) + 70, // 70-100%
-      averageMarks: Math.floor(Math.random() * 20) + 70, // 70-90%
-      totalSubjects: 5,
-      rank: Math.floor(Math.random() * students?.length) + 1
-    };
-  };
+const StudentPerformanceMatrix = ({ students = [], subjects = [] }) => {
+  const [selectedSubject, setSelectedSubject] = useState(subjects?.[0]?.code || '');
+  const [sortBy, setSortBy] = useState('attendance');
+  const [sortOrder, setSortOrder] = useState('desc');
 
   const getPerformanceColor = (percentage) => {
-    if (percentage >= 85) return 'text-green-600 bg-green-100';
-    if (percentage >= 70) return 'text-yellow-600 bg-yellow-100';
-    return 'text-red-600 bg-red-100';
+    if (percentage >= 85) return 'text-success bg-success/10';
+    if (percentage >= 75) return 'text-warning bg-warning/10';
+    return 'text-error bg-error/10';
   };
 
-  if (studentsLoading) {
-    return (
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-lg font-medium text-gray-900 mb-4">Student Performance Matrix</h2>
-        <div className="space-y-4">
-          {[...Array(5)]?.map((_, index) => (
-            <div key={index} className="animate-pulse">
-              <div className="flex space-x-4">
-                <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
-                <div className="flex-1 space-y-2">
-                  <div className="h-4 bg-gray-200 rounded w-1/4"></div>
-                  <div className="h-3 bg-gray-200 rounded w-3/4"></div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
+  const getAttendanceStatus = (percentage) => {
+    if (percentage >= 85) return 'Excellent';
+    if (percentage >= 75) return 'Good';
+    if (percentage >= 65) return 'Average';
+    return 'Poor';
+  };
+
+  const sortedStudents = [...students]?.sort((a, b) => {
+    const aValue = sortBy === 'attendance' ? a?.attendance : a?.marks;
+    const bValue = sortBy === 'attendance' ? b?.attendance : b?.marks;
+    return sortOrder === 'desc' ? bValue - aValue : aValue - bValue;
+  });
+
+  const handleSort = (field) => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc');
+    } else {
+      setSortBy(field);
+      setSortOrder('desc');
+    }
+  };
 
   return (
-    <div className="bg-white rounded-lg shadow">
-      {/* Header */}
-      <div className="p-6 border-b border-gray-200">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-medium text-gray-900">Student Performance Matrix</h2>
-          <div className="flex items-center space-x-2">
-            <Users className="h-5 w-5 text-gray-400" />
-            <span className="text-sm text-gray-500">{filteredStudents?.length || 0} students</span>
-          </div>
-        </div>
-
-        {/* Filters */}
-        <div className="flex flex-col md:flex-row space-y-3 md:space-y-0 md:space-x-4">
-          {/* Search */}
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search students..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e?.target?.value || '')}
-              className="pl-10 pr-4 py-2 w-full text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-
-          {/* Subject Filter */}
+    <div className="bg-card border border-border rounded-lg p-6">
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="font-semibold text-foreground">Student Performance Matrix</h3>
+        <div className="flex items-center space-x-3">
           <select
             value={selectedSubject}
-            onChange={(e) => setSelectedSubject(e?.target?.value || 'all')}
-            className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            onChange={(e) => setSelectedSubject(e?.target?.value)}
+            className="px-3 py-2 border border-border rounded-lg text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
           >
-            <option value="all">All Subjects</option>
-            {subjects?.map((assignment) => (
-              <option key={assignment?.subject?.id} value={assignment?.subject?.id}>
-                {assignment?.subject?.subject_name}
+            <option value="">All Subjects</option>
+            {subjects?.map((subject) => (
+              <option key={subject?.code} value={subject?.code}>
+                {subject?.name}
               </option>
             ))}
           </select>
+          <Button
+            variant="outline"
+            size="sm"
+            iconName="Download"
+            iconPosition="left"
+            onClick={() => console.log('Export performance matrix')}
+          >
+            Export
+          </Button>
         </div>
       </div>
-
-      {/* Performance Matrix */}
       <div className="overflow-x-auto">
-        <table className="min-w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-border">
+              <th className="text-left py-3 px-4 font-medium text-muted-foreground">
                 Student
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                <div className="flex items-center">
-                  <Calendar className="h-4 w-4 mr-1" />
-                  Attendance
+              <th className="text-left py-3 px-4 font-medium text-muted-foreground">
+                PRN
+              </th>
+              <th 
+                className="text-left py-3 px-4 font-medium text-muted-foreground cursor-pointer hover:text-foreground transition-smooth"
+                onClick={() => handleSort('attendance')}
+              >
+                <div className="flex items-center space-x-1">
+                  <span>Attendance</span>
+                  <Icon 
+                    name={sortBy === 'attendance' && sortOrder === 'desc' ? 'ChevronDown' : 'ChevronUp'} 
+                    size={14} 
+                  />
                 </div>
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                <div className="flex items-center">
-                  <BookOpen className="h-4 w-4 mr-1" />
-                  Avg. Marks
+              <th 
+                className="text-left py-3 px-4 font-medium text-muted-foreground cursor-pointer hover:text-foreground transition-smooth"
+                onClick={() => handleSort('marks')}
+              >
+                <div className="flex items-center space-x-1">
+                  <span>Avg Marks</span>
+                  <Icon 
+                    name={sortBy === 'marks' && sortOrder === 'desc' ? 'ChevronDown' : 'ChevronUp'} 
+                    size={14} 
+                  />
                 </div>
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                <div className="flex items-center">
-                  <TrendingUp className="h-4 w-4 mr-1" />
-                  Performance
-                </div>
+              <th className="text-left py-3 px-4 font-medium text-muted-foreground">
+                Status
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Rank
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="text-left py-3 px-4 font-medium text-muted-foreground">
                 Actions
               </th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {filteredStudents?.length > 0 ? (
-              filteredStudents?.map((student) => {
-                const stats = calculateStudentStats(student?.id);
-                const performanceScore = Math.round((stats?.attendancePercentage + stats?.averageMarks) / 2);
-                
-                return (
-                  <tr key={student?.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0 h-10 w-10">
-                          <div className="h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center">
-                            <span className="text-sm font-medium text-white">
-                              {student?.full_name?.charAt(0) || 'U'}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">
-                            {student?.full_name || 'Unknown Student'}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            {student?.prn || 'N/A'} • {student?.class_name || 'No Class'}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="flex-1">
-                          <div className="text-sm font-medium text-gray-900">
-                            {stats?.attendancePercentage}%
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
-                            <div 
-                              className="bg-blue-600 h-2 rounded-full" 
-                              style={{width: `${stats?.attendancePercentage}%`}}
-                            ></div>
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
-                        {stats?.averageMarks}%
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {stats?.totalSubjects} subjects
-                      </div>
-                    </td>
-                    
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                        getPerformanceColor(performanceScore)
-                      }`}>
-                        {performanceScore >= 85 ? 'Excellent' : 
-                         performanceScore >= 70 ? 'Good' : 'Needs Attention'}
+          <tbody>
+            {sortedStudents?.map((student) => (
+              <tr key={student?.prn} className="border-b border-border hover:bg-muted/30 transition-smooth">
+                <td className="py-3 px-4">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+                      <span className="text-primary-foreground font-medium text-sm">
+                        {student?.name?.split(' ')?.map(n => n?.[0])?.join('')?.toUpperCase()}
                       </span>
-                    </td>
-                    
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      #{stats?.rank}
-                    </td>
-                    
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button className="text-blue-600 hover:text-blue-900 mr-3">
-                        View Details
-                      </button>
-                      <button className="text-gray-600 hover:text-gray-900">
-                        Message
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })
-            ) : (
-              <tr>
-                <td colSpan="6" className="px-6 py-8 text-center">
-                  <Users className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No students found</h3>
-                  <p className="text-gray-500">
-                    {searchTerm ? 'Try adjusting your search terms.' : 'No students assigned to your classes yet.'}
-                  </p>
+                    </div>
+                    <div>
+                      <p className="font-medium text-foreground">{student?.name}</p>
+                      <p className="text-xs text-muted-foreground">{student?.email}</p>
+                    </div>
+                  </div>
+                </td>
+                <td className="py-3 px-4 text-sm text-muted-foreground">
+                  {student?.prn}
+                </td>
+                <td className="py-3 px-4">
+                  <div className="flex items-center space-x-2">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPerformanceColor(student?.attendance)}`}>
+                      {student?.attendance}%
+                    </span>
+                  </div>
+                </td>
+                <td className="py-3 px-4">
+                  <span className="font-medium text-foreground">{student?.marks}%</span>
+                </td>
+                <td className="py-3 px-4">
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPerformanceColor(student?.attendance)}`}>
+                    {getAttendanceStatus(student?.attendance)}
+                  </span>
+                </td>
+                <td className="py-3 px-4">
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      iconName="Eye"
+                      onClick={() => console.log('View student profile:', student?.prn)}
+                    />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      iconName="MessageSquare"
+                      onClick={() => console.log('Contact student:', student?.prn)}
+                    />
+                  </div>
                 </td>
               </tr>
-            )}
+            ))}
           </tbody>
         </table>
       </div>
-
-      {/* Summary Footer */}
-      {filteredStudents?.length > 0 && (
-        <div className="p-4 bg-gray-50 border-t border-gray-200">
-          <div className="flex justify-between items-center text-sm text-gray-600">
-            <span>Showing {filteredStudents?.length} students</span>
-            <div className="flex space-x-4">
-              <span>
-                Avg. Attendance: {Math.round(
-                  filteredStudents?.reduce((acc, student) => 
-                    acc + calculateStudentStats(student?.id)?.attendancePercentage, 0
-                  ) / filteredStudents?.length
-                )}%
-              </span>
-              <span>
-                Avg. Performance: {Math.round(
-                  filteredStudents?.reduce((acc, student) => 
-                    acc + calculateStudentStats(student?.id)?.averageMarks, 0
-                  ) / filteredStudents?.length
-                )}%
-              </span>
-            </div>
-          </div>
+      {sortedStudents?.length === 0 && (
+        <div className="text-center py-8">
+          <Icon name="Users" size={32} className="mx-auto text-muted-foreground mb-2" />
+          <p className="text-muted-foreground">No students found</p>
         </div>
       )}
     </div>

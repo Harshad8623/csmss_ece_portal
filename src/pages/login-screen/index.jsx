@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
 import LoginForm from './components/LoginForm';
 import LoginCard from './components/LoginCard';
 import ThemeToggle from './components/ThemeToggle';
@@ -8,43 +7,70 @@ import BackgroundPattern from './components/BackgroundPattern';
 
 const LoginScreen = () => {
   const navigate = useNavigate();
-  const { signIn } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
+
+  // Mock authentication data
+  const mockUsers = [
+    // Students (PRN: 23025331844001-23025331844075)
+    { username: '23025331844001', password: 'Pass@123', role: 'student', name: 'Aarav Sharma', firstLogin: true },
+    { username: '23025331844002', password: 'Pass@123', role: 'student', name: 'Priya Patel', firstLogin: true },
+    { username: '23025331844003', password: 'Pass@123', role: 'student', name: 'Rohit Kumar', firstLogin: false },
+    { username: '23025331844004', password: 'Pass@123', role: 'student', name: 'Sneha Desai', firstLogin: true },
+    { username: '23025331844005', password: 'Pass@123', role: 'student', name: 'Arjun Singh', firstLogin: false },
+    
+    // Teachers (Teacher ID: T0001-T0005)
+    { username: 'T0001', password: 'Pass@123', role: 'teacher', name: 'Dr. Rajesh Mehta', designation: 'Professor', firstLogin: false },
+    { username: 'T0002', password: 'Pass@123', role: 'teacher', name: 'Prof. Sunita Joshi', designation: 'Associate Professor', firstLogin: true },
+    { username: 'T0003', password: 'Pass@123', role: 'teacher', name: 'Dr. Amit Gupta', designation: 'Assistant Professor', firstLogin: false },
+    { username: 'T0004', password: 'Pass@123', role: 'teacher', name: 'Prof. Kavita Sharma', designation: 'HOD', firstLogin: false },
+    { username: 'T0005', password: 'Pass@123', role: 'teacher', name: 'Dr. Vikram Patil', designation: 'Assistant Professor', firstLogin: true }
+  ];
 
   const handleLogin = async (formData) => {
     setIsLoading(true);
-    setError('');
 
     try {
-      const { data, error } = await signIn(formData?.email || formData?.username, formData?.password);
+      // Simulate API call delay
+      await new Promise(resolve => setTimeout(resolve, 1500));
 
-      if (error) {
-        throw new Error(error.message || 'Login failed. Please check your credentials.');
+      // Find user in mock data
+      const user = mockUsers?.find(
+        u => u?.username === formData?.username && u?.password === formData?.password
+      );
+
+      if (!user) {
+        throw new Error('Invalid username or password. Please check your credentials.');
       }
 
-      // The AuthProvider will handle profile fetching and navigation
-      // We'll navigate based on the user's role after profile is loaded
-      // For now, let's wait a bit for profile to load, then navigate
-      setTimeout(() => {
-        // Navigation will be handled by checking user role in a useEffect
-        // in App.jsx or through the auth context
-        const userData = JSON.parse(localStorage.getItem('user') || '{}');
-        const userRole = data?.user?.user_metadata?.role || userData?.role;
-        
-        if (userRole === 'student') {
-          navigate('/student-dashboard');
-        } else if (userRole === 'teacher') {
-          navigate('/teacher-dashboard');
-        } else if (userRole === 'hod' || userRole === 'admin') {
+      // Store user data in localStorage (in real app, this would be JWT token)
+      const userData = {
+        username: user?.username,
+        name: user?.name,
+        role: user?.role,
+        designation: user?.designation,
+        firstLogin: user?.firstLogin,
+        loginTime: new Date()?.toISOString()
+      };
+
+      localStorage.setItem('user', JSON.stringify(userData));
+      localStorage.setItem('isAuthenticated', 'true');
+
+      // Navigate based on role
+      if (user?.role === 'student') {
+        navigate('/student-dashboard');
+      } else if (user?.role === 'teacher') {
+        if (user?.designation === 'HOD') {
           navigate('/analytics-dashboard');
         } else {
-          // Default navigation - we'll determine role from profile navigate('/student-dashboard');
+          navigate('/teacher-dashboard');
         }
-      }, 1000);
+      }
+
+      // Show success message (in real app, this might be a toast notification)
+      console.log(`Welcome ${user?.name}! Login successful.`);
 
     } catch (error) {
-      setError(error?.message || 'Login failed. Please try again.');
+      throw error;
     } finally {
       setIsLoading(false);
     }
@@ -64,31 +90,8 @@ const LoginScreen = () => {
           <LoginForm 
             onLogin={handleLogin}
             isLoading={isLoading}
-            error={error}
           />
         </LoginCard>
-      </div>
-
-      {/* Login Instructions */}
-      <div className="absolute bottom-4 left-4 right-4 text-center text-sm text-gray-600 dark:text-gray-400 z-10">
-        <p className="mb-2">Demo Login Credentials:</p>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
-          <div className="bg-white/80 dark:bg-gray-800/80 rounded p-2">
-            <strong>Student:</strong><br/>
-            Email: 23025331844001@student.csmss.edu.in<br/>
-            Password: Pass@123
-          </div>
-          <div className="bg-white/80 dark:bg-gray-800/80 rounded p-2">
-            <strong>Teacher:</strong><br/>
-            Email: rajesh.mehta@csmss.edu.in<br/>
-            Password: Pass@123
-          </div>
-          <div className="bg-white/80 dark:bg-gray-800/80 rounded p-2">
-            <strong>HOD:</strong><br/>
-            Email: hod.ece@csmss.edu.in<br/>
-            Password: Pass@123
-          </div>
-        </div>
       </div>
 
       {/* Mobile Responsive Adjustments */}
